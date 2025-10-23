@@ -4,6 +4,7 @@
 mod db;
 mod etl;
 mod models;
+mod pipeline;
 mod rpc;
 
 use anyhow::{Context, Result};
@@ -71,126 +72,31 @@ async fn main() -> Result<()> {
 
     tracing::info!("Solana Block Fetcher initialized successfully");
 
-    // Test: Fetch a range of blocks
-    println!("\n🔍 Testing block range extraction...");
+    // ========== PHASE 6: Run ETL Pipeline ==========
+    println!("\n🔍 Determining block range...");
     let latest_slot = rpc_client.get_latest_slot().await.context("Failed to get latest slot")?;
-
-    println!("📍 Latest confirmed slot: {}", format_number(latest_slot));
 
     // Fetch 10 recent blocks (go back 20 slots to ensure they're all finalized)
     let end_slot = latest_slot - 20;
-    let start_slot = end_slot - 9; // Fetch 10 blocks total for testing
+    let start_slot = end_slot - 9; // Fetch 10 blocks total
 
-    println!("🎯 Fetching blocks from {} to {}", format_number(start_slot), format_number(end_slot));
+    println!("📍 Latest confirmed slot: {}", format_number(latest_slot));
 
-    let (extracted_blocks, _stats) =
-        etl::extract::extract_block_range(&rpc_client, start_slot, end_slot, 100, Some(&program_registry))
-            .await
-            .context("Failed to extract block range")?;
+    // Configure and run the pipeline
+    let pipeline_config = pipeline::PipelineConfig {
+        start_slot,
+        end_slot,
+        max_retries: 3,
+        retry_delay: std::time::Duration::from_secs(2),
+        batch_size: 10,
+    };
 
-    // ========== PHASE 5: Load blocks and transactions into database ==========
-    println!("\n💾 Inserting blocks into database...");
-    let start_insert = std::time::Instant::now();
+    let pipeline = pipeline::Pipeline::new(rpc_client, database, program_registry, pipeline_config);
 
-    // Use batch insertion for better performance
-    let (blocks_inserted, transactions_inserted) =
-        etl::load::batch_insert_blocks_with_transactions(database.pool(), &extracted_blocks, &program_registry)
-            .await
-            .context("Failed to batch insert blocks and transactions")?;
+    // Run the pipeline with error handling and retry logic
+    let _pipeline_stats = pipeline.run().await.context("Pipeline execution failed")?;
 
-    let insert_duration = start_insert.elapsed();
-
-    println!(
-        "✅ Inserted {} blocks and {} transactions into database in {:.2}s",
-        blocks_inserted,
-        transactions_inserted,
-        insert_duration.as_secs_f64()
-    );
-
-    // Display summary of a few blocks
-    println!("\n📊 Sample of extracted blocks:");
-    for (i, block) in extracted_blocks.iter().take(3).enumerate() {
-        println!("\n  Block #{} - Slot: {}", i + 1, format_number(block.slot));
-        println!("    Blockhash: {}...{}", &block.blockhash[..8], &block.blockhash[block.blockhash.len() - 8..]);
-        println!("    Parent slot: {}", format_number(block.parent_slot));
-        println!("    Transactions: {}", block.transactions.len());
-
-        let success_count = block.transactions.iter().filter(|tx| tx.success).count();
-        let fail_count = block.transactions.len() - success_count;
-        println!("    Success/Fail: {} ✅ / {} ❌", success_count, fail_count);
-
-        let total_fees: u64 = block.transactions.iter().map(|tx| tx.fee).sum();
-        println!("    Total fees: {} lamports", format_number(total_fees));
-    }
-
-    // Display classified transaction samples
-    println!("\n🏷️  Sample classified transactions with detailed analysis:");
-
-    // Collect statistics from all transactions
-    let mut stats = etl::transform::TransactionTypeStats::new();
-    let mut shown = 0;
-    let mut shown_sol_transfer = false;
-
-    for block in &extracted_blocks {
-        for tx in &block.transactions {
-            // Collect statistics for all transactions
-            let tx_type = etl::transform::classify_transaction_with_registry(&tx.program_ids, &program_registry);
-            stats.add(&tx_type);
-
-            // Display first 5 transactions OR first SOL transfer (for debugging)
-            let is_sol_transfer = tx_type == crate::models::TransactionType::SolTransfer;
-
-            if shown < 5 || (is_sol_transfer && !shown_sol_transfer) {
-                let details = etl::transform::analyze_transaction_with_registry(
-                    &tx.program_ids,
-                    &program_registry,
-                    Some(&tx.raw_json),
-                );
-                let status = if tx.success { "✅" } else { "❌" };
-
-                println!("\n  Transaction {} {}", shown + 1, status);
-                println!("    Type: {}", details.label);
-                println!("    Signature: {}...{}", &tx.signature[..8], &tx.signature[tx.signature.len() - 8..]);
-                println!("    Fee: {} lamports", format_number(tx.fee));
-                println!("    Programs: {} ({})", tx.program_ids.len(), details.program_names.join(", "));
-
-                // Display parsed details if available
-                if let Some(amount) = details.amount {
-                    println!("    💰 Amount: {} lamports", format_number(amount));
-                }
-                if let Some(token) = &details.token_address {
-                    println!("    🪙  Token: {}...{}", &token[..8], &token[token.len().saturating_sub(8)..]);
-                }
-                if let Some(from) = &details.from_account {
-                    println!("    📤 From: {}...{}", &from[..8], &from[from.len().saturating_sub(8)..]);
-                }
-                if let Some(to) = &details.to_account {
-                    println!("    📥 To: {}...{}", &to[..8], &to[to.len().saturating_sub(8)..]);
-                }
-
-                if is_sol_transfer {
-                    shown_sol_transfer = true;
-                }
-                shown += 1;
-            }
-        }
-    }
-
-    // Display overall statistics
-    println!("\n📈 Transaction Type Statistics:");
-    println!("   Total analyzed: {}", stats.total);
-    println!("   💸 SOL Transfers: {} ({:.1}%)", stats.sol_transfers, stats.percentage(stats.sol_transfers));
-    println!("   🪙  Token Transfers: {} ({:.1}%)", stats.token_transfers, stats.percentage(stats.token_transfers));
-    println!("   🔄 DEX Swaps: {} ({:.1}%)", stats.dex_swaps, stats.percentage(stats.dex_swaps));
-    println!("   🖼️  NFT Operations: {} ({:.1}%)", stats.nft_operations, stats.percentage(stats.nft_operations));
-    println!(
-        "   ⚙️  Program Interactions: {} ({:.1}%)",
-        stats.program_interactions,
-        stats.percentage(stats.program_interactions)
-    );
-    println!("   ❓ Unknown: {} ({:.1}%)", stats.unknown, stats.percentage(stats.unknown));
-
-    println!("\n✨ All tests complete!");
+    println!("\n✨ Pipeline execution complete!");
 
     Ok(())
 }

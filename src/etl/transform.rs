@@ -253,10 +253,15 @@ pub struct TransactionDetails {
     #[allow(dead_code)]
     pub tx_type: TransactionType,
     pub label: String,
+    #[allow(dead_code)]
     pub amount: Option<u64>,
+    #[allow(dead_code)]
     pub token_address: Option<String>,
+    #[allow(dead_code)]
     pub from_account: Option<String>,
+    #[allow(dead_code)]
     pub to_account: Option<String>,
+    #[allow(dead_code)]
     pub program_names: Vec<String>,
 }
 
@@ -331,6 +336,7 @@ pub fn analyze_transaction_with_registry(
 
 /// Get statistics about transaction types in a batch
 #[derive(Debug, Clone, Default)]
+#[allow(dead_code)]
 pub struct TransactionTypeStats {
     pub sol_transfers: usize,
     pub token_transfers: usize,
@@ -342,10 +348,12 @@ pub struct TransactionTypeStats {
 }
 
 impl TransactionTypeStats {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[allow(dead_code)]
     pub fn add(&mut self, tx_type: &TransactionType) {
         self.total += 1;
         match tx_type {
@@ -358,6 +366,7 @@ impl TransactionTypeStats {
         }
     }
 
+    #[allow(dead_code)]
     pub fn percentage(&self, count: usize) -> f64 {
         if self.total == 0 {
             0.0
