@@ -33,7 +33,7 @@ full-check:
 alias fc := full-check
 
 full-write:
-    cargo fmt --all
+    cargo +nightly fmt --all
 alias fw := full-write
 
 # Run tests

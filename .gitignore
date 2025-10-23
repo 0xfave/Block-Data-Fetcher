@@ -1,5 +1,7 @@
 # directories
 target/
+.cursor/
 
 # files
 **/*.rs.bk
+.env
