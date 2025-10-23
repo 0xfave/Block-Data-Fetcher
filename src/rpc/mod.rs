@@ -7,18 +7,20 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use solana_client::{rpc_client::RpcClient, rpc_config::RpcBlockConfig};
 use solana_transaction_status::{TransactionDetails, UiConfirmedBlock, UiTransactionEncoding};
+use std::sync::Arc;
 
 use crate::models::ConnectionInfo;
 
+#[derive(Clone)]
 pub struct SolanaRpcClient {
-    client: RpcClient,
+    client: Arc<RpcClient>,
     endpoint: String,
 }
 
 impl SolanaRpcClient {
     /// Create a new RPC client connected to the specified endpoint
     pub fn new(endpoint: String) -> Result<Self> {
-        let client = RpcClient::new(endpoint.clone());
+        let client = Arc::new(RpcClient::new(endpoint.clone()));
 
         Ok(Self { client, endpoint })
     }
