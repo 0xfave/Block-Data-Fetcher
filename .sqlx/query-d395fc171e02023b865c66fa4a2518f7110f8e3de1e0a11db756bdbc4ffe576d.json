@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO transactions (\n            signature, \n            block_slot, \n            transaction_index, \n            success, \n            fee, \n            transaction_type, \n            transaction_label,\n            signer,\n            num_accounts,\n            raw_data\n        )\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)\n        ON CONFLICT (signature) \n        DO UPDATE SET\n            block_slot = EXCLUDED.block_slot,\n            transaction_index = EXCLUDED.transaction_index,\n            success = EXCLUDED.success,\n            fee = EXCLUDED.fee,\n            transaction_type = EXCLUDED.transaction_type,\n            transaction_label = EXCLUDED.transaction_label,\n            signer = EXCLUDED.signer,\n            num_accounts = EXCLUDED.num_accounts,\n            raw_data = EXCLUDED.raw_data,\n            processed_at = NOW()\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int8",
+        "Int4",
+        "Bool",
+        "Int8",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Int4",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d395fc171e02023b865c66fa4a2518f7110f8e3de1e0a11db756bdbc4ffe576d"
+}

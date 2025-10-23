@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO blocks (slot, blockhash, parent_slot, block_time, block_height)\n            VALUES ($1, $2, $3, $4, $5)\n            ON CONFLICT (slot) \n            DO UPDATE SET\n                blockhash = EXCLUDED.blockhash,\n                parent_slot = EXCLUDED.parent_slot,\n                block_time = EXCLUDED.block_time,\n                block_height = EXCLUDED.block_height,\n                processed_at = NOW()\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar",
+        "Int8",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f798a6f1ab5c493fd85747bbbf1a4b0d8aa5e96825a72ffa45b3efb904232000"
+}
