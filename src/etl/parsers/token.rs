@@ -80,13 +80,14 @@ mod tests {
         });
 
         let result = parse_token_transfer(&instruction, &[]);
-        assert!(result.is_some());
+        assert!(result.is_some(), "Expected parse_token_transfer to return Some");
 
-        let (amount, mint, source, dest) = result.unwrap();
-        assert_eq!(amount, 1000000);
-        assert_eq!(mint, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
-        assert_eq!(source, "TokenAccount1111111111111111111111111");
-        assert_eq!(dest, "TokenAccount2222222222222222222222222");
+        if let Some((amount, mint, source, dest)) = result {
+            assert_eq!(amount, 1000000);
+            assert_eq!(mint, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+            assert_eq!(source, "TokenAccount1111111111111111111111111");
+            assert_eq!(dest, "TokenAccount2222222222222222222222222");
+        }
     }
 
     #[test]
@@ -108,11 +109,12 @@ mod tests {
         });
 
         let result = parse_token_transfer(&instruction, &[]);
-        assert!(result.is_some());
+        assert!(result.is_some(), "Expected parse_token_transfer to return Some");
 
-        let (amount, mint, _, _) = result.unwrap();
-        assert_eq!(amount, 5000);
-        assert_eq!(mint, "MintAddress11111111111111111111111111");
+        if let Some((amount, mint, _, _)) = result {
+            assert_eq!(amount, 5000);
+            assert_eq!(mint, "MintAddress11111111111111111111111111");
+        }
     }
 
     #[test]

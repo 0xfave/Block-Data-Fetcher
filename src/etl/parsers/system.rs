@@ -71,12 +71,13 @@ mod tests {
         });
 
         let result = parse_system_transfer(&instruction, &[]);
-        assert!(result.is_some());
+        assert!(result.is_some(), "Expected parse_system_transfer to return Some");
 
-        let (amount, from, to) = result.unwrap();
-        assert_eq!(amount, 1000);
-        assert_eq!(from, "FY27ZyvXPv7vpGJkE788JHEXo");
-        assert_eq!(to, "HFqU5x63Z2bU7gRe");
+        if let Some((amount, from, to)) = result {
+            assert_eq!(amount, 1000);
+            assert_eq!(from, "FY27ZyvXPv7vpGJkE788JHEXo");
+            assert_eq!(to, "HFqU5x63Z2bU7gRe");
+        }
     }
 
     #[test]
